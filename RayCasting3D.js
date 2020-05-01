@@ -14,6 +14,10 @@ let selectedBlock = 2;
 let blocksContainerY;
 const RAD = 57.2957795;
 
+const MENU_X = c*gridSize - 170;
+const MENU_Y = r*gridSize+5;
+let processing = false;
+let importMap = null;
 
 let defaultTexture;
 let brickTexture;
@@ -27,64 +31,63 @@ function preload() {
   stoneBrickTexture = loadImage('assets/stone_brick.jpg');
   barrelTexture = loadImage('assets/barrel.png');
   concreteTexture = loadImage('assets/concrete.png');
+  
+  
+  blocks = [
+  {
+    name: "Default",
+    texture: defaultTexture,
+    col: color(255, 255, 255)
+  }, 
+  {
+    name: "Brick", 
+    texture: brickTexture, 
+    col: color(189, 126, 96)
+  }, 
+  {
+    name: "Stone Brick", 
+    texture: stoneBrickTexture, 
+    col: color(150, 150, 150)
+  },
+  {
+    name: "Barrel", 
+    texture: barrelTexture, 
+    col: color(151, 120, 91)
+  },
+  {
+    name: "Concrete", 
+    texture: concreteTexture, 
+    col: color(207, 206, 205)
+  }
+ ];
+    
 }
 
 function setup() {
-  blocks = [
-  {
-  name: 
-    "Default",
-    texture: defaultTexture,
-    col: 
-    color(255, 255, 255)
-  }
-  , 
-  {
-  name: 
-    "Brick", 
-    texture: 
-    brickTexture, 
-    col: 
-    color(189, 126, 96)
-  }
-  , 
-  {
-  name: 
-    "Stone Brick", 
-    texture: 
-    stoneBrickTexture, 
-    col: 
-    color(150, 150, 150)
-  },
-  {
-  name: 
-    "Barrel", 
-    texture: 
-    barrelTexture, 
-    col: 
-    color(151, 120, 91)
-  },
-  {
-  name: 
-    "Concrete", 
-    texture: 
-    concreteTexture, 
-    col: 
-    color(207, 206, 205)
-  }
-    ];
-    
-    
+  // Create the canvas
   createCanvas(cWidth, cHeight);
+  
+  stroke(255);
+  mapInput = createFileInput(handleFile);
+  mapInput.position(0,0);
+  
+  // Instantiate the player to the middle of the map
   player = new Player(c/2*gridSize, r/2*gridSize, 0);
+  
+  // Draw the cells
   for (let i = 0; i<c; i++) {
     for (let j = 0; j<r; j++) {
       let state = i==0 || i == c-1 || j == 0 || j == r-1;
-      append(grids, new Cell(i, j, state));
+      let cell = new Cell(i, j, state);
+      cell.setBlock(1);
+      append(grids, cell);
     }
   }
 }
 
+function handleFile(file){
+  importMap = file;
+}
 
 function draw() {
   background(0);
@@ -135,13 +138,23 @@ function draw() {
   }
   noStroke();
   fill(255);
-  text("x: " + mouseX + ", y: " + mouseY, 0, (r)*gridSize+gridSize / 2);
+  text("x: " + mouseX + ", y: " + mouseY, 0, (r)*gridSize+gridSize / 2 + 5);
   
   let sceneHeight = 400;
   draw3DScene(0, (r+1) * gridSize, c*gridSize, sceneHeight);
   
   blocksContainerY = (r+2) * gridSize +sceneHeight;
   drawBlocks(0, blocksContainerY , c*gridSize);
+  
+  fill(255);
+  rect(MENU_X,MENU_Y,80,20);
+  fill(0);
+  text("Import", MENU_X + 20,MENU_Y + 5,80,20);
+  
+  fill(255);
+  rect(MENU_X + 90,MENU_Y,80,20);
+  fill(0);
+  text("Export", MENU_X + 110,MENU_Y + 5,80,20);
 }
 
 function keyPressed() {
@@ -309,6 +322,38 @@ function mousePressed() {
       selectedBlock = getIndex(floor((mouseY - blocksContainerY) / gridSize), floor(mouseX/gridSize));
     }
   }
+  if(!processing){
+    if ((mouseX > MENU_X && mouseX < (MENU_X + 80)) && (mouseY > MENU_Y && mouseY < (MENU_Y + 20))) {
+        console.log("import");
+        processing = true;
+        if(importMap){
+          let map = importMap.data.split(",");
+          map.pop();
+          for(let i = 0; i< map.length; i++){
+            let currentBlock = map[i];
+            if(currentBlock !== "-1"){
+              grids[i].setBlock(currentBlock);
+            }
+            grids[i].setState(currentBlock !== "-1");
+          }
+        }
+        processing = false;
+    } 
+    
+    if ((mouseX > MENU_X+90 && mouseX < (MENU_X + 170)) && (mouseY > MENU_Y && mouseY < (MENU_Y + 20))) {
+        console.log("export");
+        processing = true;
+        let mapName = prompt("Please enter the name of this map:");
+        mapWriter = createWriter(mapName+".map");
+        for(let g in grids){
+          let curCell = grids[g];
+          mapWriter.write(curCell.state ? (curCell.blockType+",") : "-1,");
+        }
+        mapWriter.close();
+        processing = false;
+    }
+  }
+  
 }
 
 function mouseReleased() {
@@ -323,6 +368,7 @@ class Cell {
     this.state = state;
     this.x = c * gridSize;
     this.y = r * gridSize;
+    this.blockType = selectedBlock;
     this.block = blocks[selectedBlock];
   }
 
@@ -333,6 +379,7 @@ class Cell {
   }
 
   setBlock(block) {
+    this.blockType = block;
     this.block = blocks[block];
   }
 
